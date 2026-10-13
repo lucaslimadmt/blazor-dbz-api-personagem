@@ -1,0 +1,88 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+<PageTitle>Informações do Personagem</PageTitle>
+
+<h2>Informações do Personagem</h2>
+
+<div class="mb-3 d-flex align-items-center gap-2">
+    <label for="personagemId" class="form-label mb-0"><strong>ID do Personagem:</strong></label>
+    <input id="personagemId" type="number" class="form-control" style="max-width: 120px;" @bind="personagemId" min="1" />
+    <button class="btn btn-primary" @onclick="BuscarPersonagem">Buscar</button>
+</div>
+
+@if (carregando)
+{
+    <p><em>Carregando dados do personagem...</em></p>
+}
+else if (!string.IsNullOrEmpty(mensagemErro))
+{
+    <div class="alert alert-danger">@mensagemErro</div>
+}
+else if (personagem != null)
+{
+    <p class="mb-1"><strong>Nome:</strong> @personagem.name</p>
+    <p class="mb-3"><strong>Planeta de Origem:</strong> @(personagem.originPlanet?.name ?? "Desconhecido")</p>
+
+    <h4>Transformações:</h4>
+    @if (personagem.transformations != null && personagem.transformations.Any())
+    {
+        <ul>
+            @foreach (var transformacao in personagem.transformations)
+            {
+                <li>@transformacao.name</li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p>Nenhuma transformação encontrada.</p>
+    }
+}
+
+@code {
+    private int personagemId = 1;
+    private Personagem? personagem;
+    private bool carregando = false;
+    private string? mensagemErro;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BuscarPersonagem();
+    }
+
+    private async Task BuscarPersonagem()
+    {
+        if (personagemId <= 0)
+        {
+            mensagemErro = "Por favor, informe um ID válido maior que 0.";
+            personagem = null;
+            return;
+        }
+
+        carregando = true;
+        mensagemErro = null;
+
+        try
+        {
+            using var client = new HttpClient();
+            string url = $"https://dragonball-api.com/api/characters/{personagemId}";
+            string json = await client.GetStringAsync(url);
+            personagem = JsonConvert.DeserializeObject<Personagem>(json);
+        }
+        catch (HttpRequestException)
+        {
+            mensagemErro = $"Personagem com ID {personagemId} não foi encontrado na API.";
+            personagem = null;
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Ocorreu um erro ao carregar os dados: {ex.Message}";
+            personagem = null;
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}
